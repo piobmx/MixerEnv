@@ -29,6 +29,17 @@ class Actions:
                                                 bins_per_octave=bins_per_octave)
         return new_audio
 
+
+    def exploration_action(self, eps):
+        action_val = 0
+        epsilon = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
+                  np.exp(-1. * self.n_steps / self.epsilon_decay)
+        # add noise
+        noise = np.random.randn(self.action_dim) * epsilon
+        action += noise
+        return action
+
+
     def increase_pitch(self, input_frame, pitch_change=4):
         if pitch_change < 1:
             pitch_change = 1
@@ -75,6 +86,7 @@ class Actions:
             "2": self.decrease_frame_volume,
             "3": self.increase_pitch,
             "4": self.decrease_pitch,
+            "5": self.adjust_pitch,
         }
         return self.action_dict
 

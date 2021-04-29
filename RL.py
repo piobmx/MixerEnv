@@ -33,7 +33,6 @@ EPS_DECAY = 200
 TARGET_UPDATE = 10
 
 epochs = 2
-eps = 0.5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 n_actions = 3
 policy_net = DQN(4410, 3).to(device)
@@ -94,20 +93,22 @@ def optimize_model():
 optimizer = optim.RMSprop(policy_net.parameters())
 memory = ReplayMemory(10000)
 
-epochs = 3
+epochs = 120
 action_counter = Counter()
+epoch_rewards = []
 for e in (range(epochs)):
     #     observation = ma.update_observation
     ma.C = 0
     timestep = 0
-    print("NEW EPOCH")
+    print(f"EPOCH: {e}...")
     #     current
     rp, rv, rp2, rv2 = ma.update_state()
     rv = torch.Tensor(rv)
+    epoch_reward = 0
     for i in tqdm(range(0, 500)):
     # while timestep < 445:
-        if timestep % 90 == 0:
-            print(f"timestep: {timestep}")
+    #     if timestep % 120 == 0:
+    #         print(f"timestep: {timestep}")
         timestep += 1
         # print(rv.shape)
         action = select_action(rv, mixer=ma)
@@ -128,6 +129,7 @@ for e in (range(epochs)):
         #         nrp, nrv, nrp2, nrv2 = ma.update_state()
 
         aprime_reward = ma.reward()
+        epoch_reward += aprime_reward
         aprime_reward = torch.Tensor([aprime_reward], ).to(device)
         actionID = torch.Tensor([[int(actionID)]], ).to(device)
         nrv = torch.Tensor(nrv)
@@ -138,20 +140,22 @@ for e in (range(epochs)):
         # print(actionID)
         if ma.both_playing:
             memory.push(rv, actionID, nrv, aprime_reward)
+            optimize_model()
         rv = nrv
-        optimize_model()
-
+    epoch_rewards.append(epoch_reward)
     # ma.save_current(e)
     if e < epochs - 1:
         ma.save_audios_history(e)
         ma.recover_audios()
+    ma.save_amp_history(e)
+
 #         aprime_reward = ma.calc_reward()
 #         update_q(space, rem_pos, rem_vel, next_action, new_reward)
 #         rem_pos, rem_vel = new_pos, new_vel
 
 
 # In[646]:
-
+print(epoch_rewards)
 
 # ma.waveplot_compare()
 # ov = ma.generate_original_overlays(saveto=True)

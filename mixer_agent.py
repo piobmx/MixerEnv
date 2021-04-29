@@ -46,6 +46,7 @@ class Mixer_agent():
         self.track_num = 5
         self.queue = queue
         self.audios = []
+        self.rl_agent = None
         
         
         self.original = None
@@ -76,15 +77,18 @@ class Mixer_agent():
 #         trackname = np.random.choice(self.tracklist)
 #         self.random_playlist(self.track_num)
         self.initial_audios()
-        self.generate_original_overlays(saveto=True)
-        first_track = self.queue.pop(0)
-        self.current_track = Audio(first_track)
-        self.current_track.construct_frames()
-        self.current_frames = self.current_track.audio_frames[:FRAMES_PER_STEP] # current state
-        self.next_frames = self.current_track.audio_frames[FRAMES_PER_STEP:FRAMES_PER_STEP+10] # partial observation
-        self.current_t1framesID = 0
+        # self.generate_original_overlays(saveto=True)
+        # first_track = self.queue.pop(0)
+        # self.current_track = Audio(first_track)
+        # self.current_track.construct_frames()
+        # self.current_frames = self.current_track.audio_frames[:FRAMES_PER_STEP] # current state
+        # self.next_frames = self.current_track.audio_frames[FRAMES_PER_STEP:FRAMES_PER_STEP+10] # partial observation
+        # self.current_t1framesID = 0
     
-    
+    def set_rl_agent(self, rl_agent):
+        self.rl_agent = rl_agent
+
+
     def generate_original_overlays(self, wavname="original", saveto=False):
         nums = len(self.playlist)
         position = 10
@@ -117,7 +121,7 @@ class Mixer_agent():
         self.original = channels
         # ipd.Audio(channels, rate=global_sr)
         if saveto:
-            write(f"{wavname}.wav", global_sr, channels)
+            write(f"outputs/{wavname}.wav", global_sr, channels)
 #             audio_segment.export("original.wav", format="wav")
 
 
@@ -126,11 +130,11 @@ class Mixer_agent():
         nums = len(self.playlist)
         position = 10
         channels = np.zeros(global_sr * (position * nums + 5), dtype="float32")
-        self.frame_matrix = []
+        # self.frame_matrix = []
         for i, track in enumerate(self.audios):
-            ones = np.ones(track.frames_num)
+            # ones = np.ones(track.frames_num)
             tmp_arr = np.array([])
-            for frames in track.newest_version:
+            for frames in track.audio_frames:
                 tmp_arr = np.append(tmp_arr, frames)
             padding = (
                 int(global_sr * position * i, ), 
@@ -138,11 +142,13 @@ class Mixer_agent():
             )
 
             tmp_arr = np.pad(tmp_arr, padding, "constant")
-            print(tmp_arr.shape)
-            print(channels.shape)
+            # print(tmp_arr.shape)
+            # print(channels.shape)
             channels += tmp_arr
         if saveto:
-            write(f"{wavname}.wav", global_sr, channels)
+            filename = f"outputs/{wavname}.wav"
+            write(filename, global_sr, channels)
+            print(f"{filename} SAVED")
             
             
     def waveplot_original_overlays(self, total=False):
@@ -378,15 +384,67 @@ class Mixer_agent():
         return aid
 
 
+    def update_one_step(self):
+
+        rp, rv, rp2, rv2 = self.update_state()
+        # trackA, frameA, trackB, frameB
+        # rv = torch.Tensor(rv)
+        # epoch_reward = 0
+        # for ...
+        # timestep += 1
+
+        # action = select_action(rv, mixer=ma)
+        # action_counter[str(action)] += 1
+        # action_val = 0
+        # print(self.rl_agent)
+        action_val = self.rl_agent.explore_action_val(state=rv)
+        mdval = np.floor(12 * (action_val))
+        # print(f"action val: {action_val} / {mdval}")
+        if self.both_playing:
+            actionID = 5
+            # actionID = self.actions.action_dict["5"]
+            param = {"pitch_change": mdval}
+            self.set_action(actionID)
+            # print(f"actionid: {actionID}")
+            self.exec_action(self.action_to_exec, **param)
+        else:
+            actionID = 0
+            self.set_action(actionID)
+            self.exec_action(self.action_to_exec)
+        self.update_C()
+
+        nrp, nrv, nrp2, nrv2 = self.update_state()
+
+        # ma.update_observation()
+        self.update_before_after_observation()
+        #         nrp, nrv, nrp2, nrv2 = ma.update_state()
+
+        step_reward = self.reward()
+        # epoch_reward += step_reward
+        # aprime_reward = torch.Tensor([aprime_reward], ).to(device)
+        # actionID = torch.Tensor([[int(actionID)]], ).to(device)
+        # nrv = torch.Tensor(nrv)
+        # rv = torch.Tensor(rv)
+        # nrv = nrv.reshape((1, 1, nrv.size()[-1]))
+        # rv = rv.reshape((1, 1, rv.size()[-1]))
+
+        # if ma.both_playing:
+        #     memory.push(rv, actionID, nrv, aprime_reward)
+        #     optimize_model()
+        # rv = nrv
+        self.rl_agent.memory.push(rv, action_val, nrv, step_reward)
+        return step_reward
     
-    def exec_action(self, func):
-        new_frame = func(self.current_frame)
+    def exec_action(self, func, **param):
+        new_frame = func(self.current_frame, **param)
         a, ib, fa, fb = self.mloc
         self.audios[a].alter_frame(new_frame, index=fa)
         log = (str(fa), str(func))
         self.audios[a].frame_log.append(log)
         return 1
-                
+
+    # def generate_newest_audio(self):
+
     
     def cross_fade_reward(self):
         if not self.both_playing:
@@ -429,7 +487,7 @@ class Mixer_agent():
         self.rewarder.observation = self.curr_observation
         preward = self.rewarder.pitch_reward()
         ampreward = self.rewarder.amp_reward()
-        return ampreward
+        return preward
 
     def give_reward(self):
         # TODO: make reward happen
@@ -473,5 +531,11 @@ class Mixer_agent():
             audio.save_current(epoch)
         return 1
     
-    
-
+    def save_amp_history(self, epoch):
+        audio_avgs = []
+        for audio in self.audios:
+            amp_avg = []
+            for f in audio.newest_version:
+                amp_avg.append(f.mean())
+            audio_avgs.append(amp_avg)
+        np.save(f"amp/amp_epoch{epoch}", audio_avgs)

@@ -20,8 +20,8 @@ class Rewarder:
         return self.reward()
 
     def reward(self):
-        # preward = self.pitch_reward()
-        preward = self.amp_reward()
+        preward = self.pitch_reward()
+        # preward = self.amp_reward()
         return preward
 
     def pitch_reward(self):
@@ -46,15 +46,15 @@ class Rewarder:
     def amp_reward(self):
         ampreward = 0
         b, p, a = self.observation[0][:4410], self.observation[0][4410:4410*2], self.observation[0][4410*2:4410*3]
-        if np.average(b) < np.average(p):
+        if np.average(b) > np.average(p):
             ampreward += 0.5
         else:
             ampreward -= 0.1
-        if np.average(p) > np.average(a):
+        if np.average(p) < np.average(a):
             ampreward += 0.5
         else:
             ampreward -= 0.1
-        if np.average(b) < np.average(a):
+        if np.average(b) > np.average(a):
             ampreward += 0.3
         else:
             ampreward -= 0.1

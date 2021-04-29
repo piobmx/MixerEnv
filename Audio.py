@@ -18,6 +18,9 @@ class Audio:
         self.frame_log = []
         self.epoch_history = {}
 
+    def __getitem__(self, item):
+        return self.audio_frames[item]
+
     def get_original_audio(self):
         return self.original
 
@@ -87,6 +90,12 @@ class Audio:
         for i, f in enumerate(self.audio_frames):
             mixed = np.append(mixed, f)
         return mixed
+
+
+    def average_frame_volume(self, original=True):
+        if original:
+            for f in self.audio_frames:
+                pass
 
 
 if __name__ == "__main__":

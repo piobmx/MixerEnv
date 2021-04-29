@@ -5,15 +5,23 @@ from pathlib import Path
 global_sr = 44100 # global sample rate
 global_hop_len = 4410 # 10 frames per seconds
 frame_len = global_hop_len
-testwav = "/Users/wxxxxxi/Projects/ReinL/test_folder/wavs/Diversion_p0.wav"
-wav_folder = "/Users/wxxxxxi/Projects/ReinL/test_folder/wavs"
+testwav = "test_folder/wavs/Diversion_p0.wav"
+wav_folder = "test_folder/wavs"
 graph_folder = "graphs/"
 wav_path = Path(wav_folder)
-testqueue = ['test_folder/wavs/One Minute To Midnight_p0.wav',
-             'test_folder/wavs/Genesis_p0.wav',
-             'test_folder/wavs/Three Signs From The Other Side (Second Sign)_p0.wav',
-             'test_folder/wavs/Three Signs From The Other Side (Third Sign)_p0.wav',
-             'test_folder/wavs/Dancing Shadows_p1.wav']
+# testqueue = ['test_folder/wavs/One Minute To Midnight_p0.wav',
+#              'test_folder/wavs/Genesis_p0.wav',
+#              'test_folder/wavs/Three Signs From The Other Side (Second Sign)_p0.wav',
+#              'test_folder/wavs/Three Signs From The Other Side (Third Sign)_p0.wav',
+#              'test_folder/wavs/Dancing Shadows_p1.wav']
+
+testqueue = [
+"candidates/Punk To Funk_p1.wav",
+"candidates/Porcelain_p1.wav",
+"candidates/Chemical Beats_p1.wav",
+"candidates/Natural Blues_p1.wav",
+"candidates/10th & Crenshaw_p1.wav"
+]
 
 def estimate_pitch(segment, sr, fmin=50.0, fmax=2000.0):
     # Compute autocorrelation of input segment.
@@ -35,8 +43,8 @@ def generate_sine(f0, sr, n_duration):
     n = np.arange(n_duration)
     return 0.2*np.sin(2*np.pi*f0*n/float(sr))
 
-gs = generate_sine(441, sr=global_sr, n_duration=10000)
-print(estimate_pitch(gs, sr=global_sr))
+# gs = generate_sine(441, sr=global_sr, n_duration=10000)
+# print(estimate_pitch(gs, sr=global_sr))
 
 
 def delete_empty_wav(path):

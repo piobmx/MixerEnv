@@ -122,8 +122,6 @@ def optimize_model():
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    a, b, c = 100, 100, 3
-    #  [16, 3, 5],
     state = torch.randn(1, 1, 4410)
 
     policy_net = DQN(4410, 3).to(device)
