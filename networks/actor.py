@@ -19,42 +19,6 @@ from torch.autograd import Variable
 
 
 
-class ActorNet(nn.Module):
-    def __init__(self, state_dim, hidden_size, output_size, output_act):
-        super(ActorNet, self).__init__()
-        self.fc1 = nn.Linear(state_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, output_size)
-        self.output_act = output_act
-
-    def forward(self, state):
-        out = F.relu(self.fc1(state))
-        out = F.relu(self.fc2(out))
-        out = self.output_act(out)
-        return out
-
-
-class ConActorNet(nn.Module):
-    def __init__(self):
-        super(ConActorNet, self).__init__()
-        self.r1 = nn.Conv1d(in_channels=1, out_channels=4, kernel_size=3, stride=2, dilation=1)
-        self.fc1 = nn.Linear(2204, 32)
-        self.r2 = nn.Conv1d(in_channels=4, out_channels=1, kernel_size=3, stride=2, dilation=1)
-        self.fc2 = nn.Linear(15, 1)
-        self.r3 = nn.Conv1d(in_channels=8, out_channels=1, kernel_size=3, dilation=4)
-
-    def forward(self, input_frame):
-        """
-        Output is action (policy)
-        """
-        out = F.relu(self.r1(input_frame))
-        # print(out.shape)
-        out = F.relu(self.fc1(out))
-        # print(out.shape)
-        out = F.relu(self.r2(out))
-        out = F.relu(self.fc2(out))
-        # print(f"act {out.shape}")
-        return out
-
 
 class Actor(nn.Module):
     def __init__(self, nb_status=30, nb_actions=1, hidden1=200, hidden2=100, run_batchnorm=False, learning_rate = 3e-4):
