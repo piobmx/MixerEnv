@@ -5,11 +5,15 @@ from utilz import *
 
 
 class Actions:
+    """
+    Actions class consists of the following actions:
+     - Adjust audio volume
+     - Adjust audio pitch by N semitones
+     - Time stretching by rate
+    All realized via Librosa library.
+    """
     def __init__(self):
         self.action_space = []
-
-    #         self.load_action()
-    #         self.n = len(action_space)
 
     def get_action_space(self):
         return self.action_space
@@ -19,6 +23,10 @@ class Actions:
         return input_frame
 
     def decrease_frame_volume(self, input_frame, level=0.9):
+        input_frame = input_frame * level
+        return input_frame
+
+    def adjust_volume(self, input_frame, level=1):
         input_frame = input_frame * level
         return input_frame
 
@@ -87,6 +95,7 @@ class Actions:
             "3": self.increase_pitch,
             "4": self.decrease_pitch,
             "5": self.adjust_pitch,
+            "6": self.adjust_volume,
         }
         return self.action_dict
 

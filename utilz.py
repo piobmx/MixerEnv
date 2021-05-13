@@ -43,10 +43,6 @@ def generate_sine(f0, sr, n_duration):
     n = np.arange(n_duration)
     return 0.2*np.sin(2*np.pi*f0*n/float(sr))
 
-# gs = generate_sine(441, sr=global_sr, n_duration=10000)
-# print(estimate_pitch(gs, sr=global_sr))
-
-
 def delete_empty_wav(path):
     for x in path.iterdir():
         if os.stat(str(x)).st_size < 10**4:

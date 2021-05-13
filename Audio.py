@@ -16,6 +16,7 @@ class Audio:
         self.audio_frames = []
         self.step = 0
         self.frame_log = []
+        self.action_history = [-1 for _ in range(self.frames_num)]
         self.epoch_history = {}
 
     def __getitem__(self, item):
