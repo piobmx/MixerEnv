@@ -29,7 +29,7 @@ class Rewarder:
         self.observation[1] = observation[1]
         return
 
-    def pitch_reward(self):
+    def pitch_reward(self, obs=None):
         """
         Receives the Agent's current observation. Analysis the pitch of both ongoing tracking.
         Reward of 1 is given if the pitches of track A and track B are 12 or 7 semitones from each other (which
@@ -37,15 +37,22 @@ class Rewarder:
         Reward of 0 is given if octave or perfect fifth doesn't happen. And in this case the Actor is supposed to learn
         to modulate the audio.
         """
-        preward = 0
+        if obs is not None:
+            obsA, obsB = obs[0], obs[1]
+        else:
+            obsA, obsB = self.observation[0], self.observation[1]
         # print(f"obs: {self.observation}")
 
-        self.pitchA = estimate_pitch(self.observation[0], sr=global_sr)
-        self.pitchB = estimate_pitch(self.observation[1], sr=global_sr)
-        self.midiA = int(librosa.hz_to_midi(self.pitchA))
-        self.midiB = int(librosa.hz_to_midi(self.pitchB))
-        pdiff = np.abs(self.midiA - self.midiB)
-        if pdiff % 12 == 0 or pdiff % 7 == 0:
+        self.pitchA = estimate_pitch(obsA, sr=global_sr)
+        self.pitchB = estimate_pitch(obsB, sr=global_sr)
+        # self.midiA = int(librosa.hz_to_midi(self.pitchA))
+        # self.midiB = int(librosa.hz_to_midi(self.pitchB))
+        # pdiff = np.abs(self.midiA - self.midiB)
+
+        fdiff = np.array(librosa.hz_to_midi(np.abs(self.pitchA - self.pitchB)))
+        fdiff = np.int_(fdiff)
+        pdiff = mode(fdiff)
+        if pdiff % 12 == 0 or pdiff % 12 == 7:
             preward = 1
         else:
             # Other rewards are abandoned temporarily
