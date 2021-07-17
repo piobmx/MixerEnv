@@ -12,7 +12,6 @@ from networks.Agent import DDPG
 from networks.PPO import PPO
 from networks.Evaluator import Evaluator
 from mixer_agent import Mixer_agent
-from Actions import Actions
 from utilz import *
 from tqdm import tqdm
 from scipy.io.wavfile import write
@@ -225,8 +224,8 @@ if __name__ == "__main__":
     parser.add_argument("--ppo_has_continuous_action_space", default=True, type=bool)
 
     queue = [
-        "/Users/wxxxxxi/Projects/ReinL/test_folder/for_main/Inti.wav",
-        "/Users/wxxxxxi/Projects/ReinL/test_folder/for_main/Kappelberg Chant.wav",
+        "candidates/Inti.wav",
+        "candidates/Kappelberg Chant.wav",
     ]
     # EPOCHS = 2000
 

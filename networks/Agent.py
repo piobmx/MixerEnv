@@ -1,8 +1,8 @@
 # from actor import *
 import pickle, os, logging, gc
 
-from networks.critic import Critic, critic_mini, MelCritic
-from networks.actor import Actor, actor_mini, MelActor
+from networks.critic import critic_mini, MelCritic
+from networks.actor import actor_mini, MelActor
 from networks.Memory import ReplayMemory, Transition
 from networks.Evaluator import Evaluator
 from copy import deepcopy
@@ -12,8 +12,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-import torchvision.transforms as T
 from torch.autograd import Variable
 
 

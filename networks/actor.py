@@ -1,21 +1,7 @@
-import random, math
-from collections import namedtuple, Counter
-
-from mixer_agent import Mixer_agent
-from utilz import *
-from Actions import Actions
-# from DQN import DQN, ReplayMemory
 import numpy as np
-import matplotlib.pyplot as plt
-import librosa
-from tqdm import tqdm
-
 import torch
 import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torchvision.transforms as T
-from torch.autograd import Variable
+
 
 def fanin_init(size, fanin=None):
     fanin = fanin or size[0]

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import librosa
-import crepe
+# import crepe
 # from statistics import mode, multimode
 from sklearn.preprocessing import normalize
 

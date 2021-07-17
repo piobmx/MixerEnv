@@ -1,6 +1,5 @@
 from utilz import *
 from Audio import Audio
-from Rewarder import Rewarder
 # from DQN import DQN, ReplayMemory
 import datetime, os, sys, random, time
 
@@ -11,6 +10,7 @@ import librosa
 import librosa.display
 import sox
 from scipy.io.wavfile import write
+from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 
 print(sys.version)
@@ -46,7 +46,6 @@ class Mixer_agent():
         self.pitch_matrix = []
         self.pitch_obs = []
         self.next_pitch_obs = []
-        self.rewarder = Rewarder()
         self.both_playing = False
         # self.action_to_exec = self.actions.no_action
         self.C = 0
@@ -331,6 +330,18 @@ class Mixer_agent():
         plt.savefig(eval_dir + f"{step}.png")
         plt.close()
         return
+
+    def get_beats_state(self, track_index=1):
+        """
+        pre obs
+        """
+        bis1 = self.audios[track_index - 1].beats_in_seconds
+        abis1 = self.audios[track_index - 1].abs_beats_in_seconds
+        bis2 = self.audios[track_index].beats_in_seconds
+        abis2 = self.audios[track_index].abs_beats_in_seconds
+        dis_arr, _ = find_nearest(abis1, abis2, forward=False)
+        dis_arr = preprocessing.normalize(dis_arr.reshape((1, dis_arr.shape[0])))
+        return dis_arr
 
     def live_pitch_match(self, action_value, update_live=True, use_sox=True):
         new_state, env_reward, done = [], 0, False

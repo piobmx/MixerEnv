@@ -41,6 +41,9 @@ class PPO:
         self.MseLoss = nn.MSELoss()
 
     def set_action_std(self, new_action_std):
+        """
+        Set original standard deviation for noise generation
+        """
         if self.has_continuous_action_space:
             self.action_std = new_action_std
             self.policy_net.set_action_std(new_action_std)
@@ -49,6 +52,9 @@ class PPO:
             pass
 
     def decay_action_std(self, action_std_decay_rate, min_action_std):
+        """
+        Decay standard deviation value for noise generation as the training progresses
+        """
         if self.has_continuous_action_space:
             self.action_std = self.action_std - action_std_decay_rate
             self.action_std = round(self.action_std, 4)
@@ -62,6 +68,9 @@ class PPO:
             pass
         
     def select_action(self, state):
+        """
+        Selection next action, based on the input state
+        """
         if self.has_continuous_action_space:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(device)
@@ -82,6 +91,9 @@ class PPO:
             return action.item()
 
     def update(self):
+        """
+        Main part of the algorithm
+        """
         rewards = []
         discounted_reward = 0
         for reward in reversed(self.buffer.rewards):

@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch.distributions import MultivariateNormal
 from torch.distributions import Categorical
 
-import numpy as np
 device = torch.device('cpu')
 
 class ActorCritic(nn.Module):
