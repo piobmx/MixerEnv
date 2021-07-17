@@ -183,7 +183,7 @@ def fade_two_tracks(track1, track2, fade_len, pad_len):
     fad2.pad(start_duration=pad_len)
 
     path1, path2 = f"{eval_dir}tmp1.wav", f"{eval_dir}tmp2.wav"
-    pathx = f"{eval_dir}x.wav"
+    pathx = f"{eval_dir}result.wav"
     T1 = fad1.build(input_array=track1.copy(), sample_rate_in=global_sr,
                     output_filepath=path1)
     T2 = fad2.build(input_array=track2.copy(), sample_rate_in=global_sr,
@@ -224,9 +224,9 @@ if __name__ == "__main__":
     parser.add_argument("--ppo_has_continuous_action_space", default=True, type=bool)
 
     queue = [
-        "candidates/Inti.wav",
+        "candidates/Mib1.wav",
 #         "candidates/Kappelberg Chant.wav",
-        "candidates/9 Breaks (The Warm Up).wav"
+        "candidates/Waiting Your Return.wav"
     ]
     # EPOCHS = 2000
 
