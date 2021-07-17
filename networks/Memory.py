@@ -1,14 +1,11 @@
 from collections import namedtuple
 import random
-
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
-
 
 class ReplayMemory:
     """
     Replay memory that is accessed to update weights
     """
-
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
