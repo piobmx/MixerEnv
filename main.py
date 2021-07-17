@@ -225,7 +225,8 @@ if __name__ == "__main__":
 
     queue = [
         "candidates/Inti.wav",
-        "candidates/Kappelberg Chant.wav",
+#         "candidates/Kappelberg Chant.wav",
+        "candidates/9 Breaks (The Warm Up).wav"
     ]
     # EPOCHS = 2000
 
