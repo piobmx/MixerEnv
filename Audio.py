@@ -1,12 +1,16 @@
 import librosa
 import numpy as np
-from utilz import *
+from sklearn.preprocessing import StandardScaler
 
+from utilz import *
 
 class Audio:
     def __init__(self, audiofilepath):
         self.y, self.sr = librosa.load(audiofilepath, sr=global_sr)
+        self.yshape = self.y.shape
+
         self.original = self.y.copy()
+        self.newest_y = self.y.copy()
         self.duration = librosa.get_duration(y=self.y, sr=global_sr)
         self.timestamps = np.linspace(0, self.duration, int(global_sr * self.duration))
         self.frames_index = librosa.time_to_frames(self.timestamps, sr=global_sr,
@@ -14,10 +18,25 @@ class Audio:
         self.frames_num = max(self.frames_index)
         self.action_box = None
         self.audio_frames = []
-        self.step = 0
+        self.mels = []
+        self.best_reward = -1
+        # self.step = 0
+        self.mark = 1
+        self.locked = []
+        self.best_mismatches = None
+        self.shft, self.stch = 0, 1
+        self.output_list = []
+        self.log_for_sox =[]
         self.frame_log = []
         self.action_history = [-1 for _ in range(self.frames_num)]
         self.epoch_history = {}
+        self.shifted = 0
+        self.stretched = 1
+        self.pitched = 0
+        self.vlines_widths = 0.75
+        self.vlines_colors = "Blue"
+        self.backward_limit = self.duration * 0.1
+        self.forward_limit = self.duration * 0.1
 
     def __getitem__(self, item):
         return self.audio_frames[item]
@@ -25,14 +44,77 @@ class Audio:
     def get_original_audio(self):
         return self.original
 
-    def construct_frames(self):
+    def construct_frames(self, construct_mels=False):
+        """
+        Splitting audio into frames of 4410 samples.
+        Not constructing mel-spectrogram anymore
+        """
         self.audio_frames = []
+        self.mels = []
         for i in range(self.frames_num - 1):
             next_frame = self.y[i * frame_len: (i + 1) * (frame_len)]
             self.audio_frames.append(next_frame)
-        self.audio_frames.append(self.y[(i + 1) * (frame_len):])
-
+            if construct_mels:
+                mel = audio_to_spec(next_frame)
+                self.mels.append(mel)
+        last_frame = self.y[(i + 1) * (frame_len): (i + 1) * (frame_len) + frame_len]
+        self.audio_frames.append(last_frame)
+        if construct_mels: self.mels.append(audio_to_spec(last_frame))
         return None
+
+    def update_shift(self, level, backward_limit=5, forward_limit=5):
+        """
+        Update the time-shift factor, and set a limit to how far the audio clip can be shifted
+        """
+        backward_limit = self.backward_limit
+        forward_limit = self.forward_limit
+        shifted = self.shifted + level
+        # print("selfshifted: ", self.shifted, ".", level)
+        if shifted > forward_limit:
+            shifted = 0.0
+        elif shifted < -backward_limit:
+            shifted = 0.0
+        self.shifted = shifted
+        return self.shifted
+
+    def update_stretch(self, level, down_limit=2/3, up_limit=3/2):
+        """
+        Update the time-stretch factor, and limit how much the audio clip can be stretched.
+        The default parameters mean that the at any point of the training the ratio of the duration of the new audio
+        should be with 3/2 and 2/3 to the duration of the un-stretched audio.
+        """
+        stretch_level = 1 + level
+        stretched = self.stretched * stretch_level
+        if stretched > up_limit:
+            stretched = 1.0
+        elif stretched < down_limit:
+            stretched = 1.0
+        self.stretched = stretched
+        return stretched
+
+    def set_vlines_widths(self, end, step, start=0, thin=0.5, thick=1):
+        """
+        Data for plt plotting
+        """
+        ref = np.ones(self.beats.shape) * thin
+        ref[start:end:step] = thick
+        self.vlines_widths = ref
+        return ref
+
+    def set_vlines_colors(self, end, step, default_c="m", highlight_c="black", start=0):
+        """
+        Data for plotting
+        """
+        ref = np.ones(self.beats.shape)
+        ref[start:end:step] = 2
+        clrs = [highlight_c if _ == 2 else default_c for _ in ref]
+        self.vlines_colors = clrs
+        return clrs
+
+    def generate_waveform_from_sox_log(self):
+        output_arr = None
+        print(self.log_for_sox)
+        return output_arr
 
     def save_current(self, key):
         self.epoch_history[key] = (key, self.audio_frames)
@@ -48,57 +130,13 @@ class Audio:
             self.pitches.append(ep)
         return 1
 
-    def random_actions(self):
-        """
-        Execute random action to every frame
-        """
-        if len(self.audio_frames) == 0:
-            self.construct_frames()
-
-        actions = Actions()
-        mixed = np.array([])
-        for i, f in enumerate(self.audio_frames):
-            c = np.random.randint(0, 5)
-            if c == 0:
-                mixed = np.append(mixed, f)
-            elif c == 1:
-                level = np.random.randint(1, 12)
-                df = actions.decrease_frame_volume(f, level=level)
-                mixed = np.append(mixed, df)
-
-            elif c == 2:
-                level = np.random.randint(1, 3) * np.random.random()
-                df = actions.increase_pitch(f, pitch_change=level)
-                mixed = np.append(mixed, df)
-
-            elif c == 3:
-                level = np.random.random()
-                df = actions.decrease_pitch(f, pitch_change=level)
-                mixed = np.append(mixed, df)
-
-            elif c == 4:
-                level = np.random.randint(-12, 0)
-                df = actions.decrease_frame_volume(f, level=level)
-                mixed = np.append(mixed, df)
-
-            else:
-                mixed = np.append(mixed, f)
-
-        return mixed
-
     def merge_all_frames(self):
         mixed = np.array([])
         for i, f in enumerate(self.audio_frames):
             mixed = np.append(mixed, f)
         return mixed
 
-
     def average_frame_volume(self, original=True):
         if original:
             for f in self.audio_frames:
                 pass
-
-
-if __name__ == "__main__":
-    testwav = "/Users/wxxxxxi/Projects/ReinL/test_folder/wavs/Diversion_p0.wav"
-    a = Audio(testwav)

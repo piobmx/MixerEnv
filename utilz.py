@@ -1,6 +1,11 @@
+import datetime, pickle, json, os
+from pathlib import Path
+
 import numpy as np
 import librosa
-from pathlib import Path
+import crepe
+# from statistics import mode, multimode
+from sklearn.preprocessing import normalize
 
 global_sr = 44100 # global sample rate
 global_hop_len = 4410 # 10 frames per seconds
@@ -16,14 +21,67 @@ wav_path = Path(wav_folder)
 #              'test_folder/wavs/Dancing Shadows_p1.wav']
 
 testqueue = [
-"candidates/Punk To Funk_p1.wav",
-"candidates/Porcelain_p1.wav",
-"candidates/Chemical Beats_p1.wav",
-"candidates/Natural Blues_p1.wav",
-"candidates/10th & Crenshaw_p1.wav"
+"test_folder/for_main/We Have Explosive.wav",
+"test_folder/for_main/Implosive.wav",
+
 ]
 
-def estimate_pitch(segment, sr, fmin=50.0, fmax=2000.0):
+
+def audio_to_spec(time_series):
+    melspec = librosa.feature.melspectrogram(time_series, sr=global_sr, hop_length=512, fmax=8000)
+    #     D = librosa.power_to_db(melspec, ref=np.max)
+    lpd = librosa.power_to_db(melspec, ref=np.max)
+
+    return lpd[::-1]
+
+def pitch_features(segment, hop_length=1024, nor=True, to_midi=False):
+    if nor is True and to_midi is True:
+        to_midi = not to_midi
+
+    hop_length = hop_length
+    p_features = np.array([])
+    pitches, magnitudes = librosa.piptrack(y=segment, sr=global_sr, fmin=20, fmax=8000,
+                                           n_fft=hop_length * 2, hop_length=hop_length)
+    p = [pitches[magnitudes[:, i].argmax(), i] for i in range(0, pitches.shape[1])]
+    pitch0 = np.array(p)  # shape (305,)
+    pitch = np.transpose(pitch0)
+    p_features = np.hstack((p_features, max(20, np.amin(pitch, 0))))
+    p_features = np.hstack((p_features, np.amax(pitch, 0)))
+    p_features = np.hstack((p_features, np.median(pitch, 0)))
+    p_features = np.hstack((p_features, np.mean(pitch, 0)))
+    p_features = np.hstack((p_features, np.std(pitch, 0)))
+    # p_features = np.hstack((p_features, np.var(pitch, 0)))
+    if nor:
+        p_features = normalize(p_features.reshape(1, -1))
+    if to_midi:
+        p_features = np.int_(librosa.hz_to_midi(p_features))
+    return p_features
+
+def get_pitches_by_beats(y, starts, ends):
+    pitches = []
+    for b in range(len(starts)):
+        seg1 = y[np.int(starts[b] * global_sr): np.int(ends[b] * global_sr)]
+        pitches1, magnitudes1 = librosa.piptrack(y=seg1, sr=global_sr, fmin=20, fmax=8000, hop_length=2048)
+        max_p = np.median((extract_max(pitches1)))
+        pitches.append(max_p)
+    return np.array(pitches)
+
+def extract_max(pitches):
+    new_pitches = []
+    for i in range(0, pitches.shape[1]):
+        new_pitches.append(np.max(pitches[:, i]))
+    return new_pitches
+
+def estimate_pitch(segment, sr=44100):
+    time, frequency, confidence, activation = crepe.predict(segment,
+                                                            sr=sr,
+                                                            viterbi=True,
+                                                            model_capacity='tiny',
+                                                            verbose=0
+                                                            )
+    return frequency
+
+def estimate_pitch_ac(segment, sr=global_sr, fmin=50.0, fmax=2000.0):
     # Compute autocorrelation of input segment.
     r = librosa.autocorrelate(segment)
 
@@ -49,58 +107,10 @@ def delete_empty_wav(path):
             os.remove(x)
     return 0
 
-
-def pitch_only(input, pitch_change=1):
-    mix_ed = np.array([])
-    # mix_ed = AudioSegment.empty()
-    testclip0 = y[:100000]
-    testclip = testclip0.copy()
-    length_change = 1.9
-    speed_fac = 1.0 / length_change
-    print("resample length_change = ", length_change)
-    tmp = np.interp(np.arange(0, len(testclip), speed_fac),
-                    np.arange(0, len(testclip)), testclip)
-    minlen = min(testclip.shape[0], tmp.shape[0])
-    testclip *= 0
-    testclip[0:minlen] = tmp[0:minlen]
-    result = np.split(testclip, [minlen])[0]
-
-    new_duration = librosa.get_duration(y=result, sr=global_sr)
-    #     print(f"input audio duration: {duration}\noutput audio duration: {new_duration}")
-
-    return result
-
-
-
 def nowness():
     now = datetime.datetime.now()
-    timestamp = f"{str(now.month)}{str(now.day)}_{str(now.hour)}{now.minute}{now.second}"
+    timestamp = f"{str(now.month)}{str(now.day)}_h{str(now.hour)}m{now.minute}s{now.second}"
     return timestamp
-
-
-
-def batch_tempo_alys(wav_file_list, write=False):
-    for wfile in wav_file_list:
-        if ".wav" not in str(wfile):
-            continue
-        print(str(wfile))
-        tempo = vanilla_tempo_estimation(str(wfile))
-        print(tempo)
-#         print(str(wfile))
-
-        if write:
-            txtfile = str(wfile).replace(".wav", ".txt")
-            with open(txtfile, "w") as tfile:
-                tfile.write(f"tempo: {str(tempo[0])}")
-    return 1
-
-
-def vanilla_tempo_estimation(input_file):
-    y, sr = librosa.load(input_file)
-    onset_env = librosa.onset.onset_strength(y, sr=global_sr)
-    tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
-    return tempo
-
 
 def join_frames(frames):
     nframes = np.array(frames)
@@ -109,3 +119,112 @@ def join_frames(frames):
         return joined
     else:
         return None
+
+def write_ppo_agent_info(path):
+    return 0
+
+def write_agent_info(rlagent, path, write_complete=False):
+    info = rlagent.__dict__
+
+    if write_complete:
+        with open(f'{path}data.p', 'wb') as fp:
+            pickle.dump(info, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    else:
+        data = {
+            "gamma": info['gamma'],
+            "target_tau": info["target_tau"],
+            "actor_lr": info['actor_lr'],
+            'critic_lr': info['critic_lr'],
+            'actor_optimizer': info['actor_optimizer'].__dict__['_zero_grad_profile_name']
+        }
+        with open(f'{path}data.p', 'wb') as fp:
+            pickle.dump(data, fp, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f'{path}data.json', 'w') as fp:
+            json.dump(data, fp)
+        fp.close()
+
+def soxx(sox_transformer, audio):
+    modulated = sox_transformer.build_array(input_array=audio.copy(), sample_rate_in=global_sr)
+    return modulated
+
+def obs_matrix(matrix, frame_matrix, default_length=550, default_num=5):
+    obs = np.zeros((default_length,))
+    for i in range(default_num - 1):
+        difx = np.abs(frame_matrix[i] + frame_matrix[i + 1])
+        difx[np.where(difx != 2)] = 0
+        difx[np.where(difx == 2)] = 1
+        dif = np.abs((matrix[i] - matrix[i + 1])) * difx
+        selecting = np.where(dif > 24)
+        obs += dif
+    return obs
+
+
+def detect_onsets(y, lag=2):
+    onset_env = librosa.onset.onset_strength(
+        y, sr=global_sr,
+        aggregate=np.median,
+        lag=lag
+    )
+    _, beats = librosa.beat.beat_track(onset_envelope=onset_env, sr=global_sr)
+    times = librosa.times_like(onset_env, sr=global_sr)
+    return onset_env, beats, times
+
+def find_nearest(beats1, beats2, forward=False, step=False):
+    """
+    For each beat in list beats2, find nearest beat in beats1 regarding time
+    """
+    # assert beats1[0] < beats2[0] and beats1[-1] < beats2[-1]
+    dis_arr = np.zeros(beats2.shape)
+    dis_ind = np.zeros(beats2.shape)
+    x = 1 + 1 * step
+    for index, b2 in enumerate(beats2[1::x]):
+        if forward:
+            if b2 > beats1.max():
+                min_dis = 9
+            else:
+                distance = beats1[1::x] - b2
+                distance *= distance > 0
+                min_dis = distance[np.argmax(distance > 0)]
+                min_dis = np.clip(min_dis, 0, 10)
+        if not forward:
+            adistance = beats1[1::x] - b2
+            distance = np.abs(beats1[1::x] - b2)
+            indx = np.argmin(distance)
+            # min_dis = np.min(distance)
+            min_dis = adistance[indx]
+            ina = np.argmin(distance) + 1
+            dis_ind[index + 1] = int(ina)
+        dis_arr[index + 1] = min_dis
+    return dis_arr, dis_ind
+
+
+def distance_quality(mean):
+    return 1 / (np.log(mean + 0.0001) - 1)
+
+def re_combine(ta, tb, ind):
+    if tb.size > ta.size:
+        new = np.zeros(tb.shape)
+    else:
+        new = np.zeros(ta.shape)
+    new[:ind] = ta[:ind]
+    new[ind:len(tb)] = tb[ind:]
+    return new
+
+def seperate(y, mark, bts):
+    ind = np.int_(bts[mark] * global_sr)
+    p2, p1 = y.copy(), y.copy()
+    p1[ind:] = 0
+    p2 = p2[ind:]
+    return p1, p2, ind
+
+def l2_reward(new_state, ref_state):
+    max_index_1 = np.argmax(new_state)
+    max_index_2 = np.argmax(ref_state)
+    distance = np.linalg.norm(new_state - ref_state)
+    if max_index_2 == max_index_1 or np.abs(max_index_2 - max_index_1) == 5 \
+            or np.abs(max_index_2 - max_index_1) == 7:
+        env_reward = 1
+    else:
+        env_reward = -distance
+        env_reward = np.clip(env_reward, -1, 1)
+    return env_reward
